@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLibraryStore, type ViewMode } from '../store/useLibraryStore';
+import { useLibraryStore } from '../store/useLibraryStore';
 import type { FolderNode, TrackEntry } from '../types';
 import { CATEGORY_LABELS } from '../types';
 import { baseName, formatBytes, formatDuration } from '../lib/format';
 import { findFolderNode, flattenFolders } from '../lib/fsAccess';
 import { IMPORT_ACCEPT, itemsFromFileList } from '../lib/importFiles';
-import { groupByAlbum, type AlbumGroup } from '../lib/albums';
+import { groupByAlbum, groupByArtist, type AlbumGroup, type ArtistGroup } from '../lib/albums';
 import { NewFolderModal } from './NewFolderModal';
 import { FolderPickerModal } from './FolderPickerModal';
 import { PlaylistPickerModal } from './PlaylistPickerModal';
@@ -15,11 +15,12 @@ import { AutoTagModal } from './AutoTagModal';
 import { AlbumModal } from './AlbumModal';
 import { FindAlbumsModal } from './FindAlbumsModal';
 import { AlbumGrid, AlbumHeader } from './AlbumGrid';
+import { ArtistGrid, ArtistHeader } from './ArtistGrid';
 import { TrackGrid } from './TrackGrid';
 import { TrackArt } from './TrackArt';
 import {
-  AlbumIcon, ChevronDownIcon, ChevronUpIcon, FolderIcon, GridViewIcon, ImageIcon, ImportIcon, ListViewIcon,
-  MenuIcon, PauseIcon, PlayIcon, SearchIcon, XIcon,
+  AlbumIcon, ArtistIcon, ChevronDownIcon, ChevronUpIcon, FolderIcon, GridViewIcon, ImageIcon, ImportIcon,
+  ListViewIcon, MenuIcon, MusicNoteIcon, PauseIcon, PlayIcon, SearchIcon, XIcon,
 } from './icons';
 
 type SortKey = 'title' | 'artist' | 'album' | 'duration' | 'format' | 'size';
@@ -28,10 +29,17 @@ const SORT_LABELS: Record<SortKey, string> = {
   title: 'Title', artist: 'Artist', album: 'Album', duration: 'Time', format: 'Format', size: 'Size',
 };
 
-const VIEW_OPTIONS: Array<{ mode: ViewMode; label: string; Icon: typeof ListViewIcon }> = [
+type BrowseBy = 'songs' | 'albums' | 'artists';
+
+const BROWSE_OPTIONS: Array<{ by: BrowseBy; label: string; Icon: typeof ListViewIcon }> = [
+  { by: 'songs', label: 'Songs', Icon: MusicNoteIcon },
+  { by: 'albums', label: 'Albums', Icon: AlbumIcon },
+  { by: 'artists', label: 'Artists', Icon: ArtistIcon },
+];
+
+const LAYOUT_OPTIONS: Array<{ mode: 'list' | 'grid'; label: string; Icon: typeof ListViewIcon }> = [
   { mode: 'list', label: 'List', Icon: ListViewIcon },
   { mode: 'grid', label: 'Grid', Icon: GridViewIcon },
-  { mode: 'albums', label: 'Albums', Icon: AlbumIcon },
 ];
 
 const folderInputProps = { webkitdirectory: '' } as Record<string, string>;
@@ -53,6 +61,7 @@ export function LibraryView() {
   const folderTree = useLibraryStore((s) => s.folderTree);
   const searchQuery = useLibraryStore((s) => s.searchQuery);
   const viewMode = useLibraryStore((s) => s.viewMode);
+  const songLayout = useLibraryStore((s) => s.songLayout);
   const showArt = useLibraryStore((s) => s.showArt);
   const setViewMode = useLibraryStore((s) => s.setViewMode);
   const setShowArt = useLibraryStore((s) => s.setShowArt);
@@ -78,6 +87,7 @@ export function LibraryView() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'title', dir: 1 });
   const [modal, setModal] = useState<ModalName>(null);
   const [openAlbumKey, setOpenAlbumKey] = useState<string | null>(null);
+  const [openArtistKey, setOpenArtistKey] = useState<string | null>(null);
   const [albumSeed, setAlbumSeed] = useState<{ tracks: TrackEntry[]; album?: string; artist?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +95,7 @@ export function LibraryView() {
   useEffect(() => {
     setSelectedIds(new Set());
     setOpenAlbumKey(null);
+    setOpenArtistKey(null);
   }, [selectedView, viewMode]);
 
   const terms = useMemo(() => searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean), [searchQuery]);
@@ -152,14 +163,27 @@ export function LibraryView() {
     ? albumGroups.find((g) => g.key === openAlbumKey) ?? null
     : null;
 
-  // 'table' is the list view and an opened album; the other two show cards instead of rows.
-  const layout: 'table' | 'grid' | 'albums' = viewMode === 'list' || openGroup ? 'table' : viewMode === 'grid' ? 'grid' : 'albums';
-  const shownTracks = viewMode === 'albums' ? (openGroup ? openGroup.tracks : []) : tracks;
-  // Next/previous follow what's on screen: album by album in the album grid, otherwise the visible rows.
-  const queueTracks = useMemo(
-    () => (viewMode === 'albums' ? (openGroup ? openGroup.tracks : albumGroups.flatMap((g) => g.tracks)) : tracks),
-    [viewMode, openGroup, albumGroups, tracks],
+  const artistGroups: ArtistGroup[] = useMemo(
+    () => (viewMode === 'artists' ? groupByArtist(tracks) : []),
+    [viewMode, tracks],
   );
+  const openArtist = viewMode === 'artists' && openArtistKey !== null
+    ? artistGroups.find((g) => g.key === openArtistKey) ?? null
+    : null;
+
+  // 'table' is the song list plus an opened album or artist; the other layouts show cards instead of rows.
+  const layout: 'table' | 'grid' | 'albums' | 'artists' =
+    viewMode === 'list' || openGroup || openArtist
+      ? 'table'
+      : viewMode === 'grid' ? 'grid' : viewMode === 'albums' ? 'albums' : 'artists';
+  const openedTracks = openGroup?.tracks ?? openArtist?.tracks ?? null;
+  const shownTracks = viewMode === 'albums' || viewMode === 'artists' ? (openedTracks ?? []) : tracks;
+  // Next/previous follow what's on screen: group by group in the card grids, otherwise the visible rows.
+  const queueTracks = useMemo(() => {
+    if (viewMode === 'albums') return openGroup ? openGroup.tracks : albumGroups.flatMap((g) => g.tracks);
+    if (viewMode === 'artists') return openArtist ? openArtist.tracks : artistGroups.flatMap((g) => g.tracks);
+    return tracks;
+  }, [viewMode, openGroup, openArtist, albumGroups, artistGroups, tracks]);
 
   useEffect(() => {
     setVisibleTrackIds(queueTracks.map((t) => t.id));
@@ -233,6 +257,13 @@ export function LibraryView() {
 
   const showSortControl = layout === 'grid';
   const inTable = layout === 'table';
+  const browseBy: BrowseBy = viewMode === 'albums' ? 'albums' : viewMode === 'artists' ? 'artists' : 'songs';
+  // Album/artist cards always show their cover; the toggle only affects song rows and tiles.
+  const artToggleDisabled = viewMode === 'albums' || layout === 'artists';
+
+  function browse(by: BrowseBy) {
+    setViewMode(by === 'songs' ? songLayout : by);
+  }
 
   return (
     <section className="library-view">
@@ -271,28 +302,45 @@ export function LibraryView() {
         </div>
 
         <div className="header-controls">
-          <div className="view-switcher" role="group" aria-label="View">
-            {VIEW_OPTIONS.map(({ mode, label, Icon }) => (
+          <div className="view-switcher" role="group" aria-label="Browse by">
+            {BROWSE_OPTIONS.map(({ by, label, Icon }) => (
               <button
-                key={mode}
+                key={by}
                 type="button"
-                className={`view-btn ${viewMode === mode ? 'active' : ''}`}
-                onClick={() => setViewMode(mode)}
-                aria-pressed={viewMode === mode}
-                title={`${label} view`}
+                className={`view-btn ${browseBy === by ? 'active' : ''}`}
+                onClick={() => browse(by)}
+                aria-pressed={browseBy === by}
+                title={`Browse ${label.toLowerCase()}`}
               >
                 <Icon size={15} />
                 <span className="view-btn-label">{label}</span>
               </button>
             ))}
           </div>
+          {browseBy === 'songs' && (
+            <div className="view-switcher" role="group" aria-label="Song layout">
+              {LAYOUT_OPTIONS.map(({ mode, label, Icon }) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`view-btn ${viewMode === mode ? 'active' : ''}`}
+                  onClick={() => setViewMode(mode)}
+                  aria-pressed={viewMode === mode}
+                  title={`${label} view`}
+                >
+                  <Icon size={15} />
+                  <span className="view-btn-label">{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <button
             type="button"
-            className={`view-btn art-toggle ${showArt && viewMode !== 'albums' ? 'active' : ''}`}
+            className={`view-btn art-toggle ${showArt && !artToggleDisabled ? 'active' : ''}`}
             onClick={() => setShowArt(!showArt)}
             aria-pressed={showArt}
-            disabled={viewMode === 'albums'}
-            title={viewMode === 'albums' ? 'Album view always shows album art' : showArt ? 'Hide album art' : 'Show album art'}
+            disabled={artToggleDisabled}
+            title={artToggleDisabled ? 'Albums and artists always show their cover' : showArt ? 'Hide album art' : 'Show album art'}
           >
             <ImageIcon size={15} />
             <span className="view-btn-label">Art</span>
@@ -417,6 +465,23 @@ export function LibraryView() {
             group={openGroup}
             onBack={() => setOpenAlbumKey(null)}
             onPlay={() => playTrack(openGroup.tracks[0].id)}
+          />
+        )}
+
+        {openArtist && (
+          <ArtistHeader
+            group={openArtist}
+            onBack={() => setOpenArtistKey(null)}
+            onPlay={() => playTrack(openArtist.tracks[0].id)}
+          />
+        )}
+
+        {layout === 'artists' && (
+          <ArtistGrid
+            groups={artistGroups}
+            emptyMessage={emptyMessage}
+            onOpen={setOpenArtistKey}
+            onPlay={(group) => playTrack(group.tracks[0].id)}
           />
         )}
 

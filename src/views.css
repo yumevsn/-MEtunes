@@ -386,6 +386,20 @@
   color: var(--text-faint);
 }
 
+/* Artists are shown as round portraits instead of square covers. */
+.artist-card .album-card-art {
+  border-radius: 50%;
+}
+
+.artist-card .album-card-text {
+  align-items: center;
+  text-align: center;
+}
+
+.art-thumb.round {
+  border-radius: 50%;
+}
+
 .album-header {
   margin-bottom: 16px;
 }

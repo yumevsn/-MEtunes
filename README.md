@@ -10,7 +10,7 @@ No backend, no accounts, no server-side storage. Everything happens locally in t
 - **Library sections** — Music, Audiobooks, and Videos (for video files you'd rather listen to, like motivational talks). Each top-level folder is assigned to a section; the choice is saved in a small `.metunes-library.json` on the device itself, so it follows the card between computers.
 - **Import songs** — copy files onto the device with the **Import** button, **Import Folder**, or by dragging songs (or whole folders) onto the window. Choose the destination folder; folders you drop keep their structure, and a file with the same name is kept and the new one becomes `Song (2).mp3`.
 - **Search the whole device** — matches title, artist, album, filename, and folder names across every section and folder, not just the one you're viewing.
-- **Three ways to view songs** — List, Grid, and Albums (a grid of album covers that opens into an album page), with a toggle to show or hide album art. Your choice is remembered.
+- **Browse by songs, albums, or artists** — **Songs** as a List or a Grid, **Albums** as a grid of covers that opens into an album page, or **Artists**, where each artist opens to all of their songs. A toggle shows or hides album art on songs. Your choices are remembered.
 - **Organize files** — create folders, move, rename, and delete files directly on the device.
 - **Albums** — turn songs into an album folder (`Artist - Album`) and fill in what's missing:
   - **Create Album** from selected songs, or start from an empty folder.

@@ -199,6 +199,15 @@ export function ImportIcon(props: IconProps) {
   );
 }
 
+export function ArtistIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="8.5" r="3.6" />
+      <path d="M5 20c.6-3.6 3.5-5.6 7-5.6s6.4 2 7 5.6" />
+    </Svg>
+  );
+}
+
 export function MenuIcon(props: IconProps) {
   return (
     <Svg {...props}>

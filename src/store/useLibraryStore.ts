@@ -28,9 +28,10 @@ export type ViewSelection =
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'scanning' | 'ready' | 'error';
 
-export type ViewMode = 'list' | 'grid' | 'albums';
+// list and grid are two layouts of the same "Songs" view.
+export type ViewMode = 'list' | 'grid' | 'albums' | 'artists';
 
-const VIEW_MODES: ViewMode[] = ['list', 'grid', 'albums'];
+const VIEW_MODES: ViewMode[] = ['list', 'grid', 'albums', 'artists'];
 
 function readPref(key: string): string | null {
   try {
@@ -71,6 +72,7 @@ interface LibraryState {
   nowPlayingOpen: boolean;
   pendingImport: ImportItem[] | null;
   viewMode: ViewMode;
+  songLayout: 'list' | 'grid';
   showArt: boolean;
   sidebarOpen: boolean;
 
@@ -212,6 +214,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
     nowPlayingOpen: false,
     pendingImport: null,
     viewMode: VIEW_MODES.find((mode) => mode === readPref('metunes.viewMode')) ?? 'list',
+    songLayout: readPref('metunes.songLayout') === 'grid' ? 'grid' : 'list',
     showArt: readPref('metunes.showArt') !== 'false',
     sidebarOpen: false,
 
@@ -462,7 +465,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
 
     setViewMode: (mode) => {
       writePref('metunes.viewMode', mode);
-      set({ viewMode: mode });
+      if (mode === 'list' || mode === 'grid') {
+        // Remembered so going Albums -> Songs returns to the layout you last used.
+        writePref('metunes.songLayout', mode);
+        set({ viewMode: mode, songLayout: mode });
+      } else {
+        set({ viewMode: mode });
+      }
     },
 
     setShowArt: (show) => {

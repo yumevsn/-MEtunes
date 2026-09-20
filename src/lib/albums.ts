@@ -124,6 +124,37 @@ export function clusterByArtist(tracks: TrackEntry[]): ArtistCluster[] {
   return [...map.values()].sort((a, b) => b.tracks.length - a.tracks.length);
 }
 
+export interface ArtistGroup {
+  key: string;
+  artist: string;
+  albumCount: number;
+  tracks: TrackEntry[];
+}
+
+// One entry per artist, with every one of their songs ordered album by album.
+export function groupByArtist(tracks: TrackEntry[]): ArtistGroup[] {
+  const map = new Map<string, TrackEntry[]>();
+  for (const track of tracks) {
+    const key = normalizeText(artistOf(track));
+    const list = map.get(key);
+    if (list) list.push(track); else map.set(key, [track]);
+  }
+  return [...map.entries()]
+    .map(([key, list]) => ({
+      key,
+      artist: mostCommon(list.map(artistOf)),
+      albumCount: new Set(list.map(albumKeyOf).filter((k) => k !== UNKNOWN_ALBUM_KEY)).size,
+      tracks: [...list].sort(
+        (a, b) => (a.tags?.album ?? '').localeCompare(b.tags?.album ?? '') || byTrackNumber(a, b),
+      ),
+    }))
+    .sort((a, b) => {
+      if (a.key === '') return 1;
+      if (b.key === '') return -1;
+      return a.artist.localeCompare(b.artist);
+    });
+}
+
 function bigramCounts(text: string): Map<string, number> {
   const compact = text.replace(/ /g, '');
   const counts = new Map<string, number>();
