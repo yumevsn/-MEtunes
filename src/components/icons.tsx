@@ -190,6 +190,65 @@ export function UsbIcon(props: IconProps) {
   );
 }
 
+export function ImportIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 4v10M8 10.5l4 4 4-4" />
+      <path d="M5 15v3a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 18v-3" />
+    </Svg>
+  );
+}
+
+export function MenuIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Svg>
+  );
+}
+
+export function ListViewIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9 6.5h11M9 12h11M9 17.5h11" />
+      <circle cx="4.7" cy="6.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="4.7" cy="12" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="4.7" cy="17.5" r="0.9" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
+export function GridViewIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" />
+    </Svg>
+  );
+}
+
+export function ImageIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
+      <circle cx="9" cy="10" r="1.5" />
+      <path d="M4 17l4.5-4.5 3.5 3.5 3-3 5 5" />
+    </Svg>
+  );
+}
+
+export function AlbumIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
 export function PencilIcon(props: IconProps) {
   return (
     <Svg {...props}>

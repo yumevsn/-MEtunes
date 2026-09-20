@@ -566,16 +566,194 @@ input:focus, select:focus, .search-input:focus {
   pointer-events: none;
 }
 
-.search-input {
-  width: 240px;
+/* Scoped under .search-field so it outranks the generic `input:not([type])` padding rule. */
+.search-field .search-input {
+  width: 260px;
   padding-left: 30px;
+  padding-right: 28px;
+}
+
+.search-clear {
+  position: absolute;
+  right: 6px;
+  border: none;
+  background: var(--sidebar-bg);
+  color: var(--text-muted);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.search-clear:hover {
+  color: var(--text);
+}
+
+.library-header {
+  gap: 16px;
+}
+
+.search-field {
+  flex-shrink: 0;
+}
+
+.search-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.heading-sub {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.track-path {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 1px;
+}
+
+.folder-path {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-faint);
+  margin-left: 4px;
 }
 
 .library-toolbar {
   display: flex;
-  gap: 8px;
+  gap: 8px 22px;
   padding: 0 22px 12px;
   flex-wrap: wrap;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ---------- Drag & drop import ---------- */
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: rgba(20, 20, 25, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: none;
+}
+
+.drop-overlay-card {
+  border: 2px dashed var(--accent);
+  background: var(--bg-elevated);
+  border-radius: 16px;
+  padding: 36px 44px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  max-width: 420px;
+}
+
+.drop-overlay-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.drop-overlay-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ---------- Import dialog ---------- */
+
+.import-summary {
+  font-size: 13.5px;
+  margin: 0 0 12px;
+}
+
+.import-skipped {
+  color: var(--text-faint);
+}
+
+.import-hint {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin: 6px 0 0;
+}
+
+.import-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.import-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.import-list li:last-child {
+  border-bottom: none;
+}
+
+.import-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.import-file-size {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.import-more {
+  color: var(--text-faint);
+  justify-content: center !important;
+}
+
+.import-current {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 8px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--sidebar-bg);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.15s ease;
 }
 
 .track-table-wrap {

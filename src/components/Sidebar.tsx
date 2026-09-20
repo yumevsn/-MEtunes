@@ -17,6 +17,8 @@ export function Sidebar() {
   const rootName = useLibraryStore((s) => s.rootName);
   const device = useLibraryStore((s) => s.device);
   const isDemo = useLibraryStore((s) => s.isDemo);
+  const sidebarOpen = useLibraryStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useLibraryStore((s) => s.setSidebarOpen);
   const tracksById = useLibraryStore((s) => s.tracksById);
   const trackOrder = useLibraryStore((s) => s.trackOrder);
   const playlists = useLibraryStore((s) => s.playlists);
@@ -46,7 +48,10 @@ export function Sidebar() {
     config.folderCategories[topFolder] ?? guessCategoryForFolder(topFolder, 'audio');
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <button type="button" className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
+        <XIcon size={16} />
+      </button>
       <div className="sidebar-scroll">
         <div className="sidebar-section">
           <div className="sidebar-heading">Library</div>

@@ -1,8 +1,13 @@
 import { create } from 'zustand';
-import type { DeviceIdentity, FolderNode, MediaCategory, PlaylistEntry, TrackEntry, TrackTags } from '../types';
+import type {
+  AlbumApplyResult, AlbumPlanItem, DeviceIdentity, FolderNode, ImportItem, ImportResult, MediaCategory,
+  PlaylistEntry, TrackEntry, TrackTags,
+} from '../types';
 import {
   createFolder as fsCreateFolder,
   deleteTrack as fsDeleteTrack,
+  getDirectoryHandleForPath,
+  importFile as fsImportFile,
   moveTrack as fsMoveTrack,
   renameTrack as fsRenameTrack,
   pickDeviceRoot,
@@ -22,6 +27,26 @@ export type ViewSelection =
   | { type: 'folder'; path: string };
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'scanning' | 'ready' | 'error';
+
+export type ViewMode = 'list' | 'grid' | 'albums';
+
+const VIEW_MODES: ViewMode[] = ['list', 'grid', 'albums'];
+
+function readPref(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writePref(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Preferences are a convenience; ignore storage being blocked.
+  }
+}
 
 interface LibraryState {
   root: FileSystemDirectoryHandle | null;
@@ -44,6 +69,10 @@ interface LibraryState {
   isPlaying: boolean;
   visibleTrackIds: string[];
   nowPlayingOpen: boolean;
+  pendingImport: ImportItem[] | null;
+  viewMode: ViewMode;
+  showArt: boolean;
+  sidebarOpen: boolean;
 
   connect: () => Promise<void>;
   connectDemo: () => Promise<void>;
@@ -68,6 +97,25 @@ interface LibraryState {
   setIsPlaying: (playing: boolean) => void;
   setVisibleTrackIds: (ids: string[]) => void;
   setNowPlayingOpen: (open: boolean) => void;
+  setPendingImport: (items: ImportItem[] | null) => void;
+  setViewMode: (mode: ViewMode) => void;
+  setShowArt: (show: boolean) => void;
+  setSidebarOpen: (open: boolean) => void;
+  applyAlbumPlan: (
+    folderPath: string,
+    items: AlbumPlanItem[],
+    opts?: {
+      rescan?: boolean;
+      onProgress?: (done: number, total: number, current: string) => void;
+      shouldCancel?: () => boolean;
+    },
+  ) => Promise<AlbumApplyResult>;
+  importItems: (
+    items: ImportItem[],
+    destPath: string,
+    onProgress: (done: number, total: number, current: string) => void,
+    shouldCancel: () => boolean,
+  ) => Promise<ImportResult>;
 }
 
 interface ScanOutcome {
@@ -96,7 +144,8 @@ async function loadTagsInBackground(
         if (!tags.title && seed) {
           onUpdate(track.id, { tags: seed.tags, tagsLoaded: true, durationSec: seed.durationSec });
         } else {
-          onUpdate(track.id, { tags, tagsLoaded: true, durationSec });
+          // Demo files are placeholder bytes with no real audio to measure, so keep their authored length.
+          onUpdate(track.id, { tags, tagsLoaded: true, durationSec: durationSec ?? seed?.durationSec ?? null });
         }
       } catch {
         if (seed) {
@@ -161,6 +210,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
     isPlaying: false,
     visibleTrackIds: [],
     nowPlayingOpen: false,
+    pendingImport: null,
+    viewMode: VIEW_MODES.find((mode) => mode === readPref('metunes.viewMode')) ?? 'list',
+    showArt: readPref('metunes.showArt') !== 'false',
+    sidebarOpen: false,
 
     connect: async () => {
       set({ status: 'connecting', errorMessage: null });
@@ -232,6 +285,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
         errorMessage: null,
         currentTrackId: null,
         isPlaying: false,
+        pendingImport: null,
       });
     },
 
@@ -395,11 +449,84 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
       }));
     },
 
-    setSelectedView: (view) => set({ selectedView: view }),
+    // Search results replace the current view, so navigating anywhere else ends the search.
+    // On phones the sidebar is a drawer, so picking something also closes it.
+    setSelectedView: (view) => set({ selectedView: view, searchQuery: '', sidebarOpen: false }),
+    setSidebarOpen: (open) => set({ sidebarOpen: open }),
     setSearchQuery: (query) => set({ searchQuery: query }),
     setCurrentTrack: (id) => set({ currentTrackId: id, isPlaying: id != null }),
     setIsPlaying: (playing) => set({ isPlaying: playing }),
     setVisibleTrackIds: (ids) => set({ visibleTrackIds: ids }),
     setNowPlayingOpen: (open) => set({ nowPlayingOpen: open }),
+    setPendingImport: (items) => set({ pendingImport: items }),
+
+    setViewMode: (mode) => {
+      writePref('metunes.viewMode', mode);
+      set({ viewMode: mode });
+    },
+
+    setShowArt: (show) => {
+      writePref('metunes.showArt', String(show));
+      set({ showArt: show });
+    },
+
+    // Writes album info into each song's tags first, then (optionally) moves it into the
+    // album folder, so the tags travel with the copied file.
+    applyAlbumPlan: async (folderPath, items, opts = {}) => {
+      const { root } = get();
+      const result: AlbumApplyResult = { applied: 0, failed: [], cancelled: false };
+      if (!root) return result;
+      try {
+        if (folderPath) await getDirectoryHandleForPath(root, folderPath, true);
+      } catch (err) {
+        result.failed.push({ name: folderPath, reason: err instanceof Error ? err.message : 'Could not create the folder' });
+        return result;
+      }
+      for (const [index, item] of items.entries()) {
+        if (opts.shouldCancel?.()) {
+          result.cancelled = true;
+          break;
+        }
+        const track = get().tracksById[item.id];
+        if (!track) continue;
+        opts.onProgress?.(index, items.length, track.name);
+        try {
+          if (item.tags && track.canWriteTags) await get().updateTrackTags(item.id, item.tags);
+          if (item.move) await fsMoveTrack(root, get().tracksById[item.id], folderPath);
+          result.applied += 1;
+        } catch (err) {
+          result.failed.push({ name: track.name, reason: err instanceof Error && err.message ? err.message : 'Could not update this file' });
+        }
+      }
+      opts.onProgress?.(items.length, items.length, '');
+      // An empty plan still created a folder, which the tree needs a rescan to show.
+      if (opts.rescan !== false && (result.applied > 0 || items.length === 0)) await get().rescan();
+      return result;
+    },
+
+    importItems: async (items, destPath, onProgress, shouldCancel) => {
+      const { root } = get();
+      const result: ImportResult = { imported: 0, failed: [], cancelled: false };
+      if (!root) return result;
+      for (const [index, item] of items.entries()) {
+        if (shouldCancel()) {
+          result.cancelled = true;
+          break;
+        }
+        onProgress(index, items.length, item.file.name);
+        try {
+          await fsImportFile(root, destPath, item);
+          result.imported += 1;
+        } catch (err) {
+          result.failed.push({
+            name: item.relativePath,
+            reason: err instanceof Error && err.message ? err.message : 'Could not write to the device',
+          });
+        }
+      }
+      onProgress(items.length, items.length, '');
+      if (result.imported > 0) await get().rescan();
+      return result;
+    },
   };
 });

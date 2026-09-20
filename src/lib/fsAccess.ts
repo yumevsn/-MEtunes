@@ -1,4 +1,4 @@
-import type { FolderNode, MediaCategory, TrackEntry } from '../types';
+import type { FolderNode, ImportItem, MediaCategory, TrackEntry } from '../types';
 import { joinPath, mediaKindOf, topFolderOf } from './format';
 
 export const IGNORED_DIR_NAMES = new Set([
@@ -122,14 +122,15 @@ export async function moveTrack(
   track: TrackEntry,
   destFolderPath: string,
 ): Promise<FileSystemFileHandle> {
+  if (destFolderPath === track.dirPath) return track.handle;
   const destDir = await getDirectoryHandleForPath(root, destFolderPath, true);
   const file = await track.handle.getFile();
   const buffer = await file.arrayBuffer();
-  const newHandle = await destDir.getFileHandle(track.name, { create: true });
+  // Never overwrite a different file that already has this name in the destination.
+  const newName = await uniqueFileName(destDir, track.name);
+  const newHandle = await destDir.getFileHandle(newName, { create: true });
   await writeFileHandle(newHandle, buffer);
-  if (destFolderPath !== track.dirPath) {
-    await track.parentHandle.removeEntry(track.name);
-  }
+  await track.parentHandle.removeEntry(track.name);
   return newHandle;
 }
 
@@ -140,6 +141,46 @@ export async function renameTrack(track: TrackEntry, newName: string): Promise<F
   await writeFileHandle(newHandle, buffer);
   await track.parentHandle.removeEntry(track.name);
   return newHandle;
+}
+
+async function entryExists(dir: FileSystemDirectoryHandle, name: string): Promise<boolean> {
+  try {
+    await dir.getFileHandle(name);
+    return true;
+  } catch (err) {
+    const errName = (err as DOMException).name;
+    if (errName === 'NotFoundError') return false;
+    // A folder with this name already exists, so the name is taken.
+    if (errName === 'TypeMismatchError') return true;
+    throw err;
+  }
+}
+
+// "Song.mp3" -> "Song (2).mp3", "Song (3).mp3", ... so imports never overwrite existing files.
+async function uniqueFileName(dir: FileSystemDirectoryHandle, name: string): Promise<string> {
+  if (!(await entryExists(dir, name))) return name;
+  const dot = name.lastIndexOf('.');
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  for (let n = 2; n < 1000; n += 1) {
+    const candidate = `${base} (${n})${ext}`;
+    if (!(await entryExists(dir, candidate))) return candidate;
+  }
+  throw new Error(`Too many files named "${name}"`);
+}
+
+export async function importFile(
+  root: FileSystemDirectoryHandle,
+  destPath: string,
+  item: ImportItem,
+): Promise<void> {
+  const segments = item.relativePath.split('/').filter(Boolean);
+  const fileName = segments.pop() as string;
+  const dirPath = [destPath, ...segments].filter(Boolean).join('/');
+  const dir = await getDirectoryHandleForPath(root, dirPath, true);
+  const finalName = await uniqueFileName(dir, fileName);
+  const handle = await dir.getFileHandle(finalName, { create: true });
+  await writeFileHandle(handle, item.file);
 }
 
 export function flattenFolders(node: FolderNode, acc: FolderNode[] = []): FolderNode[] {

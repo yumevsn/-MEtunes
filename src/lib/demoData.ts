@@ -40,6 +40,37 @@ const DEMO_TRACKS: DemoTrackSpec[] = [
     tags: tag({ title: 'Water No Get Enemy', artist: 'Fela Kuti', album: 'Expensive Shit', albumArtist: 'Fela Kuti', track: '2', year: '1975', genre: 'Afrobeat' }),
     durationSec: 641,
   },
+  // Loose songs sitting straight in Music/ (not in an album folder), for trying "Find Albums".
+  {
+    path: 'Music/Fix You.mp3',
+    tags: tag({ title: 'Fix You', artist: 'Coldplay', album: 'X&Y', albumArtist: 'Coldplay', track: '3', year: '2005', genre: 'Alternative Rock' }),
+    durationSec: 295,
+  },
+  {
+    path: 'Music/Speed of Sound.mp3',
+    tags: tag({ title: 'Speed of Sound', artist: 'Coldplay', album: 'X&Y', albumArtist: 'Coldplay', track: '4', year: '2005', genre: 'Alternative Rock' }),
+    durationSec: 288,
+  },
+  {
+    path: 'Music/Trouble.mp3',
+    tags: tag({ title: 'Trouble', artist: 'Coldplay', album: 'Parachutes', albumArtist: 'Coldplay', track: '6', genre: 'Alternative Rock' }),
+    durationSec: 271,
+  },
+  {
+    path: 'Music/Shiver.mp3',
+    tags: tag({ title: 'Shiver', artist: 'Coldplay', album: 'Parachutes', albumArtist: 'Coldplay', genre: 'Alternative Rock' }),
+    durationSec: 299,
+  },
+  {
+    path: 'Music/Paradise.mp3',
+    tags: tag({ title: 'Paradise', artist: 'Coldplay' }),
+    durationSec: 278,
+  },
+  {
+    path: 'Music/Charlie Brown.mp3',
+    tags: tag({ title: 'Charlie Brown', artist: 'Coldplay' }),
+    durationSec: 285,
+  },
   {
     path: 'Audiobooks/Atomic Habits/01 Introduction.mp3',
     tags: tag({ title: 'Introduction', artist: 'James Clear', album: 'Atomic Habits', track: '1', genre: 'Audiobook' }),

@@ -24,8 +24,10 @@ export function ConnectScreen() {
 
         {!supported && (
           <div className="banner banner-error">
-            This browser doesn't support the File System Access API. Please use a recent version of Chrome
-            or Edge on desktop.
+            <strong>This browser doesn’t let websites open folders on a device</strong>, which is how MEtunes
+            reads a memory card. Most phone and tablet browsers, Firefox and Safari work this way. To manage a
+            real memory card, open MEtunes in Chrome or Edge on a computer. You can still try everything below
+            in Demo Mode.
           </div>
         )}
         {supported && !usbSupported && (
